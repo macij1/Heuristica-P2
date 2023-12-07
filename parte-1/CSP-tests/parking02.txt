@@ -1,0 +1,6 @@
+5x6
+PE:(1,1)(1,2)
+1-TSU-C
+2-TNU-C
+3-TNU-X
+4-TNU-X
