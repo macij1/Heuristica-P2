@@ -1,6 +1,8 @@
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
 from constraint import *
+import sys
+import csv
 
 
 def get_casilla(x, y, dim) -> int:
@@ -43,14 +45,39 @@ def read_input(name):
         lineas = input_file.readlines()
         ambulancias_str = list(linea.strip('\n').split("-") for linea in lineas)
         # Conversion de TSU/TNU y C/X a bool
-        ambulancias = list((int(amb[0])-1, True if amb[1] == 'TSU' else False, True if amb[2] == 'C' else False)
+        ambulancias = list((int(amb[0]), True if amb[1] == 'TSU' else False, True if amb[2] == 'C' else False)
                            for amb in ambulancias_str)
         return dimensiones, ambulancias, plazas_electric_index
 
 
+def write_output(name, solution, dimensions):
+    with open(name, 'w') as output_file:
+        # Preparación de datos solución
+        data = [["-" for _ in range(dimensions[1])] for _ in range(dimensions[0])]
+        for i in range(1, dimensions[0]+1):
+            for j in range(1, dimensions[1]+1):
+                n = get_casilla(i, j, dimensions)
+                for clave, valor in solution.items():
+                    if n == valor:
+                        data[i-1][j-1] = clave + '-' \
+                                     + 'TSU' if ambulancias[1] else 'TNU' + '-' + 'C' if ambulancias[2] else 'X'
+        # Escritura en archivo .csv
+        csv_writer = csv.writer(output_file)
+        output_file.write('N.Sol:' + "," + str(len(solution)) + "\n")
+        for row in data:
+            csv_writer.writerow(row)
+
+
 if __name__ == '__main__':
+    # Argumentos pasados al script
+    argumentos = sys.argv[1:]
+    if len(argumentos) != 1:
+        print("Error en los argumentos")
+        exit(-1)
+    input_file = argumentos[0]
+
     # Lectura de fichero de entrada y escritura de datos necesarios
-    dimensiones, ambulancias, plazas_electric_index = read_input('CSP-tests/parking04.txt')
+    dimensiones, ambulancias, plazas_electric_index = read_input(input_file)
 
     # Creación del nuevo problema
     problem = Problem()
@@ -59,10 +86,12 @@ if __name__ == '__main__':
     # -------------------------------------------------------------------------
     # Una variable por ambulancia: "AmbX"
     # Dominio: casillas (numeradas por filas)
-    names = ["Amb" + str(amb[0]+1) for amb in ambulancias]
+    names = [str(amb[0]+1) for amb in ambulancias]
     domain = list(range(1, dimensiones[0] * dimensiones[1] + 1))
     problem.addVariables(names, domain)
+    print(ambulancias)
     print(plazas_electric_index)
+
     # Creación de restricciones
     # -------------------------------------------------------------------------
     # Funcion auxiliar:
@@ -86,7 +115,6 @@ if __name__ == '__main__':
     # dispone de conexión eléctrica
     def congelador_con_conexion(* args):
         for i in range(len(args)):
-            print("Congelador VAR " + str(i))
             if ambulancias[i][2] and args[i] not in plazas_electric_index:
                 return False
         return True
@@ -122,11 +150,16 @@ if __name__ == '__main__':
     # Cálculo de las soluciones
     # -------------------------------------------------------------------------
     print("Calculando una solución...")
-    print(problem.getSolution())
-    # # compute the solutions
-    # solutions = problem.getSolutions()
-    # # and show them on the standard output
-    # print(" #{0} solutions have been found: ".format(len(solutions)))
-    # for sol in solutions[0:5]:
-    #     print(str(sol) + '\n')
-    # # problem.getSolutions()
+    # print(problem.getSolution())
+    # compute the solutions
+    solutions = problem.getSolutions()
+    # and show them on the standard output
+    print(" #{0} solutions have been found: ".format(len(solutions)))
+    for sol in solutions[0:5]:
+        print(str(sol) + '\n')
+    # problem.getSolutions()
+    output_file = input_file.split('.')[0] + '.csv'
+    if len(solutions) is 0:
+        write_output(output_file, {}, dimensiones)
+    else:
+        write_output(output_file, solutions[0], dimensiones)
