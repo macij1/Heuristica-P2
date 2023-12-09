@@ -50,17 +50,20 @@ def read_input(name):
         return dimensiones, ambulancias, plazas_electric_index
 
 
+# Lectura de fichero. Escribe en un archivo csv los resultados de la
+# primera solución obtenida
 def write_output(name, solution, dimensions):
     with open(name, 'w') as output_file:
         # Preparación de datos solución
         data = [["-" for _ in range(dimensions[1])] for _ in range(dimensions[0])]
-        for i in range(1, dimensions[0]+1):
-            for j in range(1, dimensions[1]+1):
-                n = get_casilla(i, j, dimensions)
-                for clave, valor in solution.items():
-                    if n == valor:
-                        data[i-1][j-1] = clave + '-' \
-                                     + 'TSU' if ambulancias[1] else 'TNU' + '-' + 'C' if ambulancias[2] else 'X'
+        if len(solution) != 0:
+            for i in range(1, dimensions[0]+1):
+                for j in range(1, dimensions[1]+1):
+                    n = get_casilla(i, j, dimensions)
+                    for clave, valor in solution[0].items():  # Solamente escribimos la primera solución
+                        if n == valor:
+                            data[i-1][j-1] = clave + '-' + ('TSU' if ambulancias[int(clave)-1][1] else 'TNU')\
+                                             + '-' + ('C' if ambulancias[int(clave)-1][2] else 'X')
         # Escritura en archivo .csv
         csv_writer = csv.writer(output_file)
         output_file.write('N.Sol:' + "," + str(len(solution)) + "\n")
@@ -86,23 +89,13 @@ if __name__ == '__main__':
     # -------------------------------------------------------------------------
     # Una variable por ambulancia: "AmbX"
     # Dominio: casillas (numeradas por filas)
-    names = [str(amb[0]+1) for amb in ambulancias]
+    names = [str(amb[0]) for amb in ambulancias]
     domain = list(range(1, dimensiones[0] * dimensiones[1] + 1))
     problem.addVariables(names, domain)
-    print(ambulancias)
-    print(plazas_electric_index)
 
     # Creación de restricciones
     # -------------------------------------------------------------------------
-    # Funcion auxiliar:
-    # Si en la casilla hay una ambulancia asignada, devuelve (True, id de la variable)
-    # De lo contrario, (False, -1)
 
-    def is_taken(args, casilla):
-        for i in range(0, len(args)-1):
-            if args[i] == casilla:
-                return True, i
-        return False, -1
     # Restricción 1: Implícita. Una instanciación asigna a cada variable un
     # único valor
 
@@ -113,53 +106,63 @@ if __name__ == '__main__':
     # Restricción 3:
     # Una ambulancia con congelador está bien asignada si y solo sí su casilla
     # dispone de conexión eléctrica
-    def congelador_con_conexion(* args):
-        for i in range(len(args)):
-            if ambulancias[i][2] and args[i] not in plazas_electric_index:
-                return False
-        return True
-    problem.addConstraint(congelador_con_conexion, names)
+    def congelador_con_conexion(arg):
+        if arg not in plazas_electric_index:
+            return False
+        else:
+            return True
+
+    for i in range(len(names)):
+        if ambulancias[i][2]:  # Ambulancias con congelador
+            problem.addConstraint(congelador_con_conexion, names[i])
 
     # Restricción 4:
     # Una ambulancia de tipo TSU no deben tener ninguna ambulancia de tipo TNU
     # en la misma fila, en una columna posterior a la suya
-    def prioridad_TSU(* args):
-        for i in range(0, len(args)-1):
-            if ambulancias[i][1]:  # TSU
-                coord = get_coord(i, dimensiones)
-                col = coord[1]
-                for posterior in range(col + 1, dimensiones[1]+1):  # Todas las casillas posteriores de su fila
-                    taken, var_id = is_taken(args, posterior)
-                    if taken and not ambulancias[var_id][1]:  # TNU delante => Inválido
-                        return False
+    def prioridad_TSU(tsu, tnu):
+        coord_tsu = get_coord(tsu, dimensiones)
+        coord_tnu = get_coord(tnu, dimensiones)
+        if coord_tsu[0] == coord_tnu[0] and coord_tnu[1] > coord_tsu[1]:
+            return False # Misma fila, tnu delante de tsu
         return True
-    problem.addConstraint(prioridad_TSU, names)
+
+    tsu_amb = []
+    tnu_amb = []
+    for i in range(len(names)):
+        if ambulancias[i][1]:
+            tsu_amb.append(names[i])
+        else:
+            tnu_amb.append(names[i])
+    for prior in tsu_amb:
+        for non_prior in tnu_amb:
+            problem.addConstraint(prioridad_TSU, (prior, non_prior))
 
     # Restricción 5:
     # Una ambulancia no puede estar situada sobre o debajo de otra ambulancia
-    def maniobrabilidad(* args):
-        for i in range(0, len(args)-1):
-            coord = get_coord(i, dimensiones)
-            upper = get_casilla(coord[0]+1, coord[1], dimensiones)
-            lower = get_casilla(coord[0]-1, coord[1], dimensiones)
-            if is_taken(args, upper)[0] or is_taken(args, lower)[0]:
-                return False
-        return True
-    problem.addConstraint(maniobrabilidad, names)
+    def maniobrabilidad(a, b):
+        coord_a = get_coord(a, dimensiones)
+        coord_b = get_coord(b, dimensiones)
+        if coord_a[1] == coord_b[1] and abs(coord_a[0]-coord_b[0]) == 1:
+            return False  # Misma columna, filas contiguas
+        else:
+            return True
+
+    for i in range(len(names)):
+        for j in range(len(names)):
+            problem.addConstraint(maniobrabilidad, (names[i], names[j]))  # Producto cartesiano
 
     # Cálculo de las soluciones
     # -------------------------------------------------------------------------
     print("Calculando una solución...")
-    # print(problem.getSolution())
-    # compute the solutions
+    print(problem.getSolution())
+    print("Calculando todas las soluciones...")
     solutions = problem.getSolutions()
-    # and show them on the standard output
     print(" #{0} solutions have been found: ".format(len(solutions)))
+
+    # Escritura en consola de las primeras 5 soluciones
     for sol in solutions[0:5]:
         print(str(sol) + '\n')
-    # problem.getSolutions()
+
+    # Escritura en archivo de salida .csv
     output_file = input_file.split('.')[0] + '.csv'
-    if len(solutions) is 0:
-        write_output(output_file, {}, dimensiones)
-    else:
-        write_output(output_file, solutions[0], dimensiones)
+    write_output(output_file, solutions, dimensiones)
