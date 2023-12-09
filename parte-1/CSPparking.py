@@ -3,6 +3,7 @@
 from constraint import *
 import sys
 import csv
+from itertools import combinations
 
 
 def get_casilla(x, y, dim) -> int:
@@ -138,18 +139,46 @@ if __name__ == '__main__':
             problem.addConstraint(prioridad_TSU, (prior, non_prior))
 
     # Restricción 5:
-    # Una ambulancia no puede estar situada sobre o debajo de otra ambulancia
-    def maniobrabilidad(a, b):
+    # Una ambulancia no puede estar situada sobre una ambulancia y a la vez debajo de otra
+    def maniobrabilidad_3(a, b, c):
         coord_a = get_coord(a, dimensiones)
         coord_b = get_coord(b, dimensiones)
-        if coord_a[1] == coord_b[1] and abs(coord_a[0]-coord_b[0]) == 1:
-            return False  # Misma columna, filas contiguas
-        else:
-            return True
+        coord_c = get_coord(c, dimensiones)
 
-    for i in range(len(names)):
-        for j in range(len(names)):
-            problem.addConstraint(maniobrabilidad, (names[i], names[j]))  # Producto cartesiano
+        if coord_a[1] == coord_b[1] and coord_a[1] == coord_c[1] and coord_b[1] == coord_c[1]:
+            # Ordena las filas
+            filas = sorted([coord_a[0], coord_b[0], coord_c[0]])
+            # Verifica si la diferencia entre cada número consecutivo es 1
+            if filas[1] - filas[0] == 1 and filas[2] - filas[1] == 1:
+                return False
+        return True
+
+
+    # Generate all lists of 3 elements
+    combinations_3 = list(combinations(names, 3))
+    for comb in combinations_3:
+        problem.addConstraint(maniobrabilidad_3, comb)
+
+    # Restricción 6:
+    # Una ambulancia en la primera fila no puede tener a ninguna debajo
+    # Una ambulancia en la última fila no puede tener a ninguna encima
+    def maniobrabilidad_2(a, b):
+        coord_a = get_coord(a, dimensiones)
+        coord_b = get_coord(b, dimensiones)
+
+        if coord_a[1] == coord_b[1]:  # Misma columna
+            # Ordena las filas
+            filas = sorted([coord_a[0], coord_b[0]])
+            # Verifica si la diferencia entre cada número consecutivo es 1
+            if (filas[0] == 1 or filas[1] == dimensiones[0]) and abs(filas[0] - filas[1]) == 1:
+                return False
+        return True
+
+
+    # Generate all lists of 3 elements
+    combinations_2 = list(combinations(names, 2))
+    for comb in combinations_2:
+        problem.addConstraint(maniobrabilidad_2, comb)
 
     # Cálculo de las soluciones
     # -------------------------------------------------------------------------
