@@ -124,7 +124,7 @@ if __name__ == '__main__':
         coord_tsu = get_coord(tsu, dimensiones)
         coord_tnu = get_coord(tnu, dimensiones)
         if coord_tsu[0] == coord_tnu[0] and coord_tnu[1] > coord_tsu[1]:
-            return False # Misma fila, tnu delante de tsu
+            return False  # Misma fila, tnu delante de tsu
         return True
 
     tsu_amb = []
