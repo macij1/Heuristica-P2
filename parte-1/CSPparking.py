@@ -39,8 +39,11 @@ def read_input(name):
         # Eliminar 'PE:' y dividir la cadena en pares de números
         buffer = buffer.strip('\n')
         pares = buffer.replace("PE:", "").split(")(")
-        plazas_electric_coord = [tuple(map(int, par.strip("()").split(","))) for par in pares]
-        plazas_electric_index = set(get_casilla(coord[0], coord[1], dimensiones) for coord in plazas_electric_coord)
+        try:
+            plazas_electric_coord = [tuple(map(int, par.strip("()").split(","))) for par in pares]
+            plazas_electric_index = set(get_casilla(coord[0], coord[1], dimensiones) for coord in plazas_electric_coord)
+        except ValueError as e:
+            plazas_electric_index = []
 
         # Ambulancias
         lineas = input_file.readlines()
@@ -79,6 +82,8 @@ if __name__ == '__main__':
         print("Error en los argumentos")
         exit(-1)
     input_file = argumentos[0]
+    if input_file.startswith("./"):
+        input_file = input_file.lstrip("./")
 
     # Lectura de fichero de entrada y escritura de datos necesarios
     dimensiones, ambulancias, plazas_electric_index = read_input(input_file)
@@ -97,8 +102,7 @@ if __name__ == '__main__':
     # Creación de restricciones
     # -------------------------------------------------------------------------
 
-    # Restricción 1: Implícita. Una instanciación asigna a cada variable un
-    # único valor
+    # Restricción 1: Implícita. Una instanciación asigna a cada variable un único valor
 
     # Restricción 2:
     # No puede haber dos ambulancias en la misma casilla
