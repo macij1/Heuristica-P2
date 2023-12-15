@@ -1,0 +1,8 @@
+2x5
+PE:
+1-TNU-X
+2-TNU-C
+3-TNU-C
+4-TNU-C
+5-TNU-X
+6-TNU-X
